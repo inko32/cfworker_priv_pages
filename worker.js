@@ -8,7 +8,11 @@ export default {
     return filterStatus(request);
   },
 };
-
+/**
+ * Returns response if file exists ( http 200 )
+ * @param {Request} request 
+ * @returns {Promise<Response>}
+ */
 async function filterStatus(request){
 
   let notfound = new Response("",{status:404});
@@ -26,14 +30,27 @@ async function filterStatus(request){
   return handle404(request);// not found
 }
 
+/**
+ * Returns 404.html or 404
+ * @param {Request} request 
+ * @returns {Promise<Response>}
+ */
 async function handle404(request){
   let resp = await (await judgePath(new Request("http://_/404.html")))[0];
   if(resp.status===200){
-    return resp;
+    return new Response(resp.body, {
+      headers: resp.headers,
+      status: 404
+    });
   }
   return new Response("",{status:404});
 }
 
+/**
+ * Returns 1-2 Response(s) for filterStatus
+ * @param {Request} request 
+ * @returns {Promise<Promise<Response>[]>}
+ */
 async function judgePath(request){
   console.log("[judgepath] enter");
   let path = new URL(request.url).pathname;
@@ -79,7 +96,7 @@ async function judgePath(request){
     )
     
     );
-    console.log("foldername with index")
+    console.log("try foldername with index")
     responses.push(fetchBranch(new Request("http://_"+path+"/index.html")).then(
         resp => {
           if(resp.status == 200){
@@ -109,6 +126,11 @@ async function fetchBranch(request){
  *    FolderName, File-Non-Exist
  * 400 Invalid Request:
  *    Folder/, Non-Exist/
+ * 200:
+ *    File-Exist
+ * 
+ * Not sure:
+ *    Folder-Exist//File-Exist ( multiple / may cause 302 from github )
  */
 }
 
