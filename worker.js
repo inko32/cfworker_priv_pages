@@ -58,22 +58,15 @@ async function judgePath(request){
   /**@param {Promise<Response>[]} responses */
   let responses=[];
   if(path.endsWith('/')){
-    console.log("endswith/");
-    responses.push(fetchBranch(new Request("http://_"+path+"index.html")).then(
-      resp => {
-        if(resp.status == 200){
-          let newHdr = {
-            "content-type": "text/html"
-          };
-          return new Response(resp.body,{headers:newHdr, status: resp.status});
-        }
-      }
-    ))
-    //responses.push(fetchBranch(new Request("http://_"+path+"index.htm")))
-  } else {
-    console.log("tryfile");
-    responses.push(fetchBranch(new Request("http://_"+path)).then(
-      resp => {
+      console.log("endswith/, add index.html");
+    path+="index.html";
+  }
+  console.log("tryfile");
+  responses.push(fetchBranch(new Request("http://_"+path)).then(
+    resp => {
+      function makeContentType(hdr){
+        let old = hdr.get("content-type");
+        let postfix = (old && old.includes(";"))?(old.slice(old.lastIndexOf(";"))):"";
         const contentTypeMapping = {
           'html': 'text/html', 
           'css': 'text/css',
@@ -84,19 +77,30 @@ async function judgePath(request){
           'jpeg': 'image/jpeg', 
           'gif': 'image/gif',
           'txt': 'text/plain', 
+          'ico': 'image/x-icon',
           'bin': 'application/octet-stream',
-         };
-        let newHdr = {
-          "content-type": (contentTypeMapping[path.slice(path.lastIndexOf(".")+1)]||"text/plain")
-        };
-         return new Response(resp.body, {
-          headers: newHdr, status: resp.status
-        });
+          };
+
+        if(!old)
+          return (contentTypeMapping[path.slice(path.lastIndexOf(".")+1)]||"text/plain");
+        if(old.includes("text/plain"))
+          return (contentTypeMapping[path.slice(path.lastIndexOf(".")+1)]||"text/plain")+postfix;
+        if(old.includes("application/octet-stream"))
+          return (contentTypeMapping[path.slice(path.lastIndexOf(".")+1)]||old);
+        return old;
       }
-    )
-    
-    );
-    console.log("try foldername with index")
+
+        return new Response(resp.body, {
+        headers: { // newHdr
+          "content-type": makeContentType(resp.headers)
+        }, status: resp.status
+      });
+    }
+  )
+  
+  );
+  if(!path.endsWith("/index.html")){
+    console.log("try foldername with index, return 302 if exists")
     responses.push(fetchBranch(new Request("http://_"+path+"/index.html")).then(
         resp => {
           if(resp.status == 200){
@@ -118,6 +122,7 @@ async function fetchBranch(request){
   let url = request.url
     .replace( new URL(request.url).hostname, 
       `raw.githubusercontent.com/${GITHUBREPO}`);
+  // not a proper way for processing url
   console.log("fetch from: ",url);
   return fetchFromGithub(url);
 
